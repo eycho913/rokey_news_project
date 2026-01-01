@@ -1,1 +1,5 @@
-# rokey_news_project
+# rokey_news
+## 2025년 12월 31일 ROKEY 7기와 함께 미니 프로젝트
+rokey_news -두 번째 프로잭트
+
+## 각종 뉴스 사이트의 누스 기사 수집 및 분류
