@@ -1,9 +1,0 @@
-streamlit
-python-dotenv
-requests
-pytest
-pandas
-beautifulsoup4
-lxml
-google-generativeai
-ruff # Added for linting

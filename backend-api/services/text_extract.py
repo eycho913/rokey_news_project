@@ -1,7 +1,7 @@
 import re
 from typing import Optional
 from bs4 import BeautifulSoup
-from services.news_client import NewsItem # NewsItem을 가져와서 사용합니다.
+from backend-api.services.news_client import NewsItem # NewsItem을 가져와서 사용합니다.
 
 class TextExtractionError(Exception):
     """텍스트 추출 및 정제 관련 예외"""
