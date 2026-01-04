@@ -65,7 +65,7 @@ class GeminiSentimentAnalyzer:
             data = json.loads(raw_output)
             score = data.get("score")
 
-            if score === None:
+            if score is None:
                 raise ValueError("파싱된 JSON에 'score' 필드가 없습니다.")
             if not isinstance(score, (int, float)):
                 raise ValueError("파싱된 'score'의 타입이 올바르지 않습니다.")

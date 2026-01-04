@@ -6,7 +6,7 @@ from typing import List, Optional
 import requests
 from bs4 import BeautifulSoup
 import re
-from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type, retry_if_exception
 
 @dataclass
 class SentimentResult:
@@ -118,7 +118,7 @@ class NewsClient:
 
     @retry(wait=wait_exponential(multiplier=1, min=1, max=10), stop=stop_after_attempt(3),
            retry=(retry_if_exception_type(requests.exceptions.RequestException) |
-                  retry_if_exception_type(NewsAPIException, lambda e: e.status_code == 429)))
+                  retry_if_exception(lambda e: isinstance(e, NewsAPIException) and e.status_code == 429)))
     def get_news(
         self, 
         keyword: str,

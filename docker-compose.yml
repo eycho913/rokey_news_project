@@ -16,7 +16,7 @@ services:
       LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
       LLM_MODEL: ${LLM_MODEL:-gemini-pro}
       LLM_API_BASE: ${LLM_API_BASE}
-    command: sh -c "export PYTHONPATH=/app && uvicorn backend_api.main:app --host 0.0.0.0 --port 8000"
+    command: sh -c "export PYTHONPATH=/app && uvicorn main:app --host 0.0.0.0 --port 8000"
     networks:
       - app-network
 
