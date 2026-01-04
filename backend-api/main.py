@@ -1,8 +1,9 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, HttpUrl
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 import json
+import os # Import the os module to access environment variables
 
 from backend-api.services.news_client import NewsClient, NewsAPIException, NewsItem, SentimentResult
 from backend-api.services.text_extract import extract_and_clean
@@ -39,7 +40,7 @@ app.add_middleware(
 class AnalyzeRequest(BaseModel):
     news_url: HttpUrl
     summary_length: Literal["short", "medium", "long"] = "medium"
-    news_api_key: Optional[str] = None
+    # news_api_key: Optional[str] = None # Removed for security, now handled via env vars in /search or backend config
 
     # LLM Configuration
     llm_provider: Literal["gemini", "openai"] = "gemini"
@@ -61,9 +62,33 @@ class AnalyzeResponse(BaseModel):
 async def read_root():
     return {"message": "FastAPI backend is running!"}
 
+@app.get("/search", response_model=List[NewsItem])
+async def search_news_endpoint(
+    q: str = Query(..., description="Keyword to search for news articles"),
+    page_size: int = Query(20, ge=1, le=100, description="Number of articles to return (max 100)"),
+    # For now, `from_date` and `to_date` are not exposed via API, but can be added later.
+):
+    news_api_key = os.getenv("NEWS_API_KEY")
+    if not news_api_key:
+        raise HTTPException(
+            status_code=500, detail="NEWS_API_KEY not configured on the backend server."
+        )
+    
+    news_client = NewsClient(api_key=news_api_key)
+    try:
+        articles = news_client.get_news(keyword=q, page_size=page_size)
+        return articles
+    except NewsAPIException as e:
+        raise HTTPException(status_code=500, detail=f"News search failed: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred during news search: {e}")
+
+
 @app.post("/analyze")
 async def analyze_news_endpoint(request: AnalyzeRequest):
-    news_client = NewsClient(api_key=request.news_api_key)
+    # NEWS_API_KEY is not directly used here for scraping, only for search.
+    # The news_client here only needs the URL to scrape.
+    news_client = NewsClient() # Initialize without API key if only scraping by URL
 
     # Based on the provider, instantiate the correct services
     if request.llm_provider == "gemini":
