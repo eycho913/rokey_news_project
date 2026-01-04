@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.pyc
+*.pyd
+*.so
+.Python/
+.venv/
+env/
+venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.hypothesis/
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+.vscode/
+data/*.json
+data/*.csv
+
+# Environment variables
+.env
+.flaskenv
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+
+# Logs
+logs
+*.log
+
+# Streamlit
+.streamlit/local_storage.json
