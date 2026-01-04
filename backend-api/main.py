@@ -40,13 +40,11 @@ app.add_middleware(
 class AnalyzeRequest(BaseModel):
     news_url: HttpUrl
     summary_length: Literal["short", "medium", "long"] = "medium"
-    # news_api_key: Optional[str] = None # Removed for security, now handled via env vars in /search or backend config
-
-    # LLM Configuration
-    llm_provider: Literal["gemini", "openai"] = "gemini"
-    llm_api_key: str
-    llm_model: Optional[str] = None
-    llm_api_base: Optional[HttpUrl] = None
+    # LLM Configuration fields removed, now handled via backend env vars
+    # llm_provider: Literal["gemini", "openai"] = "gemini"
+    # llm_api_key: str
+    # llm_model: Optional[str] = None
+    # llm_api_base: Optional[HttpUrl] = None
 
 class AnalyzeResponse(BaseModel):
     title: str
@@ -66,7 +64,6 @@ async def read_root():
 async def search_news_endpoint(
     q: str = Query(..., description="Keyword to search for news articles"),
     page_size: int = Query(20, ge=1, le=100, description="Number of articles to return (max 100)"),
-    # For now, `from_date` and `to_date` are not exposed via API, but can be added later.
 ):
     news_api_key = os.getenv("NEWS_API_KEY")
     if not news_api_key:
@@ -86,27 +83,34 @@ async def search_news_endpoint(
 
 @app.post("/analyze")
 async def analyze_news_endpoint(request: AnalyzeRequest):
-    # NEWS_API_KEY is not directly used here for scraping, only for search.
-    # The news_client here only needs the URL to scrape.
+    # Retrieve LLM configuration from environment variables
+    llm_api_key = os.getenv("LLM_API_KEY")
+    if not llm_api_key:
+        raise HTTPException(status_code=500, detail="LLM_API_KEY not configured on the backend server.")
+    
+    llm_provider = os.getenv("LLM_PROVIDER", "gemini") # Default to gemini
+    llm_model = os.getenv("LLM_MODEL")
+    llm_api_base = os.getenv("LLM_API_BASE")
+
     news_client = NewsClient() # Initialize without API key if only scraping by URL
 
     # Based on the provider, instantiate the correct services
-    if request.llm_provider == "gemini":
-        summarizer = GeminiSummarizer(api_key=request.llm_api_key)
-        sentiment_analyzer = GeminiSentimentAnalyzer(api_key=request.llm_api_key)
-    elif request.llm_provider == "openai":
+    if llm_provider == "gemini":
+        summarizer = GeminiSummarizer(api_key=llm_api_key)
+        sentiment_analyzer = GeminiSentimentAnalyzer(api_key=llm_api_key)
+    elif llm_provider == "openai":
         summarizer = OpenAISummarizer(
-            api_key=request.llm_api_key,
-            model=request.llm_model or "gpt-3.5-turbo", # Default model
-            api_base=str(request.llm_api_base) if request.llm_api_base else None,
+            api_key=llm_api_key,
+            model=llm_model or "gpt-3.5-turbo", # Default model
+            api_base=llm_api_base,
         )
         sentiment_analyzer = OpenAISentimentAnalyzer(
-            api_key=request.llm_api_key,
-            model=request.llm_model or "gpt-3.5-turbo", # Default model
-            api_base=str(request.llm_api_base) if request.llm_api_base else None,
+            api_key=llm_api_key,
+            model=llm_model or "gpt-3.5-turbo", # Default model
+            api_base=llm_api_base,
         )
     else:
-        raise HTTPException(status_code=400, detail="Unsupported LLM provider.")
+        raise HTTPException(status_code=400, detail=f"Unsupported LLM provider configured on backend: {llm_provider}")
 
     try:
         # 1. Get news content from URL

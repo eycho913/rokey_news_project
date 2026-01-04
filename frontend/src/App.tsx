@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, useEffect } from 'react';
+import { useState, type ChangeEvent } from 'react';
 // App.css is no longer needed, styles are handled by Tailwind classes
 
 interface NewsItem {
@@ -14,8 +14,6 @@ interface AnalysisResult extends NewsItem {
   sentiment_label: string;
   sentiment_score: number;
 }
-
-type LLMProvider = 'gemini' | 'openai';
 
 // A simple spinner component
 const Spinner = () => (
@@ -95,13 +93,8 @@ const InputField = ({ id, label, type = "text", value, onChange, placeholder, di
 
 function App() {
   const [newsUrl, setNewsUrl] = useState<string>('');
-  const [llmProvider, setLlmProvider] = useState<LLMProvider>('gemini');
-  const [llmApiKey, setLlmApiKey] = useState<string>('');
-  const [llmModel, setLlmModel] = useState<string>('');
-  // newsApiKey is no longer passed from frontend for /analyze, only used in /search (if backend handles it this way)
-  // For search, newsApiKey will be read from backend env, so no need for it in UI for search
-  // Keeping it here for now until B-1 is fully addressed.
-  const [newsApiKey, setNewsApiKey] = useState<string>(''); 
+  // LLM configuration is now handled entirely on the backend via environment variables.
+  // No need for these state variables in the frontend.
 
   const [summaryLength, setSummaryLength] = useState<'short' | 'medium' | 'long'>('medium');
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -129,7 +122,7 @@ function App() {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          // No API key sent from frontend for search, backend uses its env var
+          // NewsAPI Key is handled by backend env var
         },
       });
 
@@ -161,10 +154,8 @@ function App() {
         body: JSON.stringify({
           news_url: newsUrl,
           summary_length: summaryLength,
-          // news_api_key is removed from analyze request as backend no longer expects it from frontend for analysis
-          llm_provider: llmProvider,
-          llm_api_key: llmApiKey,
-          llm_model: llmModel || null,
+          // LLM configuration (provider, api_key, model, api_base) is now read from backend environment variables.
+          // Frontend no longer sends these.
         }),
       });
 
@@ -227,23 +218,6 @@ function App() {
               <InputField id="newsUrl" label="뉴스 기사 URL" type="url" value={newsUrl} onChange={(e) => setNewsUrl(e.target.value)} placeholder="분석할 뉴스 기사의 URL을 입력하세요." disabled={loading || searchLoading} />
 
               <div>
-                <label htmlFor="llmProvider" className="block text-sm font-medium text-gray-700 mb-1">LLM 공급자</label>
-                <select id="llmProvider" value={llmProvider} onChange={(e: ChangeEvent<HTMLSelectElement>) => setLlmProvider(e.target.value as LLMProvider)} disabled={loading || searchLoading} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                  <option value="gemini">Gemini</option>
-                  <option value="openai">OpenAI (or compatible)</option>
-                </select>
-              </div>
-
-              <InputField id="llmApiKey" label="Open API Key" type="password" value={llmApiKey} onChange={(e) => setLlmApiKey(e.target.value)} placeholder="API 키 입력" disabled={loading || searchLoading} />
-              
-              {llmProvider === 'openai' && (
-                <InputField id="llmModel" label="LLM 모델 (선택 사항)" value={llmModel} onChange={(e) => setLlmModel(e.target.value)} placeholder="gpt-3.5-turbo" disabled={loading || searchLoading} />
-              )}
-
-              {/* NewsAPI Key input is removed from here as it's now handled securely on backend for search */}
-              {/* If analyze endpoint somehow needs NewsAPI key from frontend (which is not ideal), it would be added here */}
-
-              <div>
                 <label htmlFor="summaryLength" className="block text-sm font-medium text-gray-700 mb-1">요약 길이</label>
                 <select id="summaryLength" value={summaryLength} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSummaryLength(e.target.value as 'short' | 'medium' | 'long')} disabled={loading || searchLoading} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                   <option value="short">짧게</option>
@@ -252,7 +226,7 @@ function App() {
                 </select>
               </div>
 
-              <button onClick={analyzeNews} disabled={loading || searchLoading || !newsUrl || !llmApiKey} className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors">
+              <button onClick={analyzeNews} disabled={loading || searchLoading || !newsUrl} className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors">
                 {loading ? '분석 중...' : '뉴스 분석 실행'}
               </button>
             </div>
