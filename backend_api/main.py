@@ -5,18 +5,18 @@ from typing import Optional, Literal, List
 import json
 import os # Import the os module to access environment variables
 
-from backend-api.services.news_client import NewsClient, NewsAPIException, NewsItem, SentimentResult
-from backend-api.services.text_extract import extract_and_clean
+from services.news_client import NewsClient, NewsAPIException, NewsItem, SentimentResult
+from services.text_extract import extract_and_clean
 
 # Import both Gemini and OpenAI services
-from backend-api.services.summarizer import GeminiSummarizer
-from backend-api.services.sentiment import GeminiSentimentAnalyzer
-from backend-api.services.openai_summarizer import OpenAISummarizer
-from backend-api.services.openai_sentiment import OpenAISentimentAnalyzer
+from services.summarizer import GeminiSummarizer
+from services.sentiment import GeminiSentimentAnalyzer
+from services.openai_summarizer import OpenAISummarizer
+from services.openai_sentiment import OpenAISentimentAnalyzer
 
 # Generic exceptions
-from backend-api.services.summarizer import SummarizerException
-from backend-api.services.sentiment import SentimentException
+from services.summarizer import SummarizerException
+from services.sentiment import SentimentException
 
 
 app = FastAPI()
@@ -40,11 +40,11 @@ app.add_middleware(
 class AnalyzeRequest(BaseModel):
     news_url: HttpUrl
     summary_length: Literal["short", "medium", "long"] = "medium"
-    # LLM Configuration fields removed, now handled via backend env vars
-    # llm_provider: Literal["gemini", "openai"] = "gemini"
-    # llm_api_key: str
-    # llm_model: Optional[str] = None
-    # llm_api_base: Optional[HttpUrl] = None
+    # LLM Configuration fields are now Optional again for UI input, with env vars taking precedence
+    llm_provider: Optional[Literal["gemini", "openai"]] = None
+    llm_api_key: Optional[str] = None
+    llm_model: Optional[str] = None
+    llm_api_base: Optional[HttpUrl] = None
 
 class AnalyzeResponse(BaseModel):
     title: str
@@ -64,14 +64,17 @@ async def read_root():
 async def search_news_endpoint(
     q: str = Query(..., description="Keyword to search for news articles"),
     page_size: int = Query(20, ge=1, le=100, description="Number of articles to return (max 100)"),
+    news_api_key: Optional[str] = Query(None, alias="news_api_key", description="Optional NewsAPI Key, backend env var takes precedence"),
 ):
-    news_api_key = os.getenv("NEWS_API_KEY")
-    if not news_api_key:
+    # Prioritize NEWS_API_KEY from environment variable
+    news_api_key_used = os.getenv("NEWS_API_KEY") or news_api_key
+    
+    if not news_api_key_used:
         raise HTTPException(
-            status_code=500, detail="NEWS_API_KEY not configured on the backend server."
+            status_code=500, detail="NEWS_API_KEY not configured on the backend server or provided in UI."
         )
     
-    news_client = NewsClient(api_key=news_api_key)
+    news_client = NewsClient(api_key=news_api_key_used)
     try:
         articles = news_client.get_news(keyword=q, page_size=page_size)
         return articles
@@ -83,34 +86,34 @@ async def search_news_endpoint(
 
 @app.post("/analyze")
 async def analyze_news_endpoint(request: AnalyzeRequest):
-    # Retrieve LLM configuration from environment variables
-    llm_api_key = os.getenv("LLM_API_KEY")
-    if not llm_api_key:
-        raise HTTPException(status_code=500, detail="LLM_API_KEY not configured on the backend server.")
+    # Prioritize LLM configuration from environment variables, fallback to request body
+    llm_api_key_used = os.getenv("LLM_API_KEY") or request.llm_api_key
+    if not llm_api_key_used:
+        raise HTTPException(status_code=500, detail="LLM_API_KEY not configured on the backend server or provided in UI.")
     
-    llm_provider = os.getenv("LLM_PROVIDER", "gemini") # Default to gemini
-    llm_model = os.getenv("LLM_MODEL")
-    llm_api_base = os.getenv("LLM_API_BASE")
+    llm_provider_used = os.getenv("LLM_PROVIDER") or request.llm_provider or "gemini" # Default to gemini
+    llm_model_used = os.getenv("LLM_MODEL") or request.llm_model
+    llm_api_base_used = os.getenv("LLM_API_BASE") or (str(request.llm_api_base) if request.llm_api_base else None)
 
     news_client = NewsClient() # Initialize without API key if only scraping by URL
 
     # Based on the provider, instantiate the correct services
-    if llm_provider == "gemini":
-        summarizer = GeminiSummarizer(api_key=llm_api_key)
-        sentiment_analyzer = GeminiSentimentAnalyzer(api_key=llm_api_key)
-    elif llm_provider == "openai":
+    if llm_provider_used == "gemini":
+        summarizer = GeminiSummarizer(api_key=llm_api_key_used)
+        sentiment_analyzer = GeminiSentimentAnalyzer(api_key=llm_api_key_used)
+    elif llm_provider_used == "openai":
         summarizer = OpenAISummarizer(
-            api_key=llm_api_key,
-            model=llm_model or "gpt-3.5-turbo", # Default model
-            api_base=llm_api_base,
+            api_key=llm_api_key_used,
+            model=llm_model_used or "gpt-3.5-turbo", # Default model
+            api_base=llm_api_base_used,
         )
         sentiment_analyzer = OpenAISentimentAnalyzer(
-            api_key=llm_api_key,
-            model=llm_model or "gpt-3.5-turbo", # Default model
-            api_base=llm_api_base,
+            api_key=llm_api_key_used,
+            model=llm_model_used or "gpt-3.5-turbo", # Default model
+            api_base=llm_api_base_used,
         )
     else:
-        raise HTTPException(status_code=400, detail=f"Unsupported LLM provider configured on backend: {llm_provider}")
+        raise HTTPException(status_code=400, detail=f"Unsupported LLM provider configured on backend: {llm_provider_used}")
 
     try:
         # 1. Get news content from URL

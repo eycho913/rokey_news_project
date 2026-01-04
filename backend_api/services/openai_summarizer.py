@@ -24,7 +24,7 @@ class OpenAISummarizer:
         self.api_key = api_key
         self.model = model
         self.api_base = api_base
-        self.client = openai.OpenAI(api_key=self.api_key, base_url=self.api_base)
+        self.client = openai.OpenAI(api_key=self.api_key, base_url=self.api_base, max_retries=3)
 
     def _generate_cache_key(self, text: str, length_option: str) -> str:
         """Generates a cache key."""

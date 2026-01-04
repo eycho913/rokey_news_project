@@ -5,11 +5,18 @@ FROM python:3.10-slim-buster
 WORKDIR /app
 
 # Install any dependencies
-COPY ./backend-api/requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
+COPY ./backend_api/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt \
+    && pip install pytest \
+    && pip list \
+    && echo $PATH
+
+# Add a diagnostic script
+COPY ./backend_api/debug_versions.py /app/debug_versions.py
+RUN python /app/debug_versions.py
 
 # Copy the current directory contents into the container at /app
-COPY ./backend-api /app
+COPY ./backend_api /app
 
 # Expose port 8000 for the FastAPI application
 EXPOSE 8000

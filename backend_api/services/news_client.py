@@ -6,6 +6,7 @@ from typing import List, Optional
 import requests
 from bs4 import BeautifulSoup
 import re
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 
 @dataclass
 class SentimentResult:
@@ -28,7 +29,9 @@ class NewsItem:
 
 class NewsAPIException(Exception):
     """NewsAPI 관련 예외 또는 일반 뉴스 스크래핑 관련 예외"""
-    pass
+    def __init__(self, message, status_code=None):
+        super().__init__(message)
+        self.status_code = status_code
 
 class NewsClient:
     """NewsAPI를 호출하거나 URL에서 직접 뉴스를 가져오는 클라이언트"""
@@ -53,6 +56,8 @@ class NewsClient:
         # fallback: 모든 텍스트 가져오기 (헤더, 푸터 등 불필요한 내용 포함될 수 있음)
         return soup.get_text(separator='\n', strip=True)
 
+    @retry(wait=wait_exponential(multiplier=1, min=1, max=10), stop=stop_after_attempt(3),
+           retry=retry_if_exception_type(requests.exceptions.RequestException))
     def get_news_from_url(self, url: str) -> Optional[NewsItem]:
         """
         주어진 URL에서 뉴스 기사 본문을 스크래핑하여 NewsItem 객체를 생성합니다.
@@ -66,7 +71,9 @@ class NewsClient:
         except requests.exceptions.Timeout:
             raise NewsAPIException(f"URL 요청 시간이 초과되었습니다: {url}")
         except requests.exceptions.RequestException as e:
-            raise NewsAPIException(f"URL 요청 실패: {url} - {e}")
+            # 상태 코드에 따라 NewsAPIException에 status_code 전달
+            status_code = e.response.status_code if e.response is not None else None
+            raise NewsAPIException(f"URL 요청 실패: {url} - {e}", status_code=status_code)
         
         soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -109,6 +116,9 @@ class NewsClient:
             content=content,
         )
 
+    @retry(wait=wait_exponential(multiplier=1, min=1, max=10), stop=stop_after_attempt(3),
+           retry=(retry_if_exception_type(requests.exceptions.RequestException) |
+                  retry_if_exception_type(NewsAPIException, lambda e: e.status_code == 429)))
     def get_news(
         self, 
         keyword: str,
@@ -140,9 +150,10 @@ class NewsClient:
             raise NewsAPIException("NewsAPI 요청 시간이 초과되었습니다. (Timeout)")
         except requests.exceptions.RequestException as e:
             if e.response:
-                if e.response.status_code == 429:
-                    raise NewsAPIException("NewsAPI 요청 할당량을 초과했습니다. (429 Too Many Requests)")
-                raise NewsAPIException(f"NewsAPI 요청 실패: {e.response.status_code} {e.response.text}")
+                status_code = e.response.status_code
+                if status_code == 429:
+                    raise NewsAPIException("NewsAPI 요청 할당량을 초과했습니다. (429 Too Many Requests)", status_code=status_code)
+                raise NewsAPIException(f"NewsAPI 요청 실패: {status_code} {e.response.text}", status_code=status_code)
             raise NewsAPIException(f"NewsAPI 요청 중 오류 발생: {e}")
 
         data = response.json()
@@ -178,3 +189,4 @@ def save_to_json(news_items: List[NewsItem], directory: str, filename: str):
         json.dump(dict_items, f, ensure_ascii=False, indent=4)
         
     return filepath
+

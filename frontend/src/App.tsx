@@ -15,6 +15,8 @@ interface AnalysisResult extends NewsItem {
   sentiment_score: number;
 }
 
+type LLMProvider = 'gemini' | 'openai';
+
 // A simple spinner component
 const Spinner = () => (
   <div className="flex justify-center items-center">
@@ -93,8 +95,12 @@ const InputField = ({ id, label, type = "text", value, onChange, placeholder, di
 
 function App() {
   const [newsUrl, setNewsUrl] = useState<string>('');
-  // LLM configuration is now handled entirely on the backend via environment variables.
-  // No need for these state variables in the frontend.
+  // Reintroduced LLM configuration state variables
+  const [llmProvider, setLlmProvider] = useState<LLMProvider>('gemini');
+  const [llmApiKey, setLlmApiKey] = useState<string>('');
+  const [llmModel, setLlmModel] = useState<string>('');
+  // Reintroduced newsApiKey state variable
+  const [newsApiKey, setNewsApiKey] = useState<string>(''); 
 
   const [summaryLength, setSummaryLength] = useState<'short' | 'medium' | 'long'>('medium');
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -118,11 +124,12 @@ function App() {
     setAnalysisResult(null); // Clear analysis result
 
     try {
-      const response = await fetch(`${backendUrl}/search?q=${encodeURIComponent(searchKeyword)}`, {
+      // Send news_api_key from frontend to backend /search endpoint if provided
+      const newsApiKeyParam = newsApiKey ? `&news_api_key=${encodeURIComponent(newsApiKey)}` : '';
+      const response = await fetch(`${backendUrl}/search?q=${encodeURIComponent(searchKeyword)}${newsApiKeyParam}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          // NewsAPI Key is handled by backend env var
         },
       });
 
@@ -154,8 +161,10 @@ function App() {
         body: JSON.stringify({
           news_url: newsUrl,
           summary_length: summaryLength,
-          // LLM configuration (provider, api_key, model, api_base) is now read from backend environment variables.
-          // Frontend no longer sends these.
+          // LLM configuration fields are sent from frontend again
+          llm_provider: llmProvider,
+          llm_api_key: llmApiKey,
+          llm_model: llmModel || null,
         }),
       });
 
@@ -218,6 +227,22 @@ function App() {
               <InputField id="newsUrl" label="뉴스 기사 URL" type="url" value={newsUrl} onChange={(e) => setNewsUrl(e.target.value)} placeholder="분석할 뉴스 기사의 URL을 입력하세요." disabled={loading || searchLoading} />
 
               <div>
+                <label htmlFor="llmProvider" className="block text-sm font-medium text-gray-700 mb-1">LLM 공급자</label>
+                <select id="llmProvider" value={llmProvider} onChange={(e: ChangeEvent<HTMLSelectElement>) => setLlmProvider(e.target.value as LLMProvider)} disabled={loading || searchLoading} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                  <option value="gemini">Gemini</option>
+                  <option value="openai">OpenAI (or compatible)</option>
+                </select>
+              </div>
+
+              <InputField id="llmApiKey" label="Open API Key" type="password" value={llmApiKey} onChange={(e) => setLlmApiKey(e.target.value)} placeholder="API 키 입력" disabled={loading || searchLoading} />
+              
+              {llmProvider === 'openai' && (
+                <InputField id="llmModel" label="LLM 모델 (선택 사항)" value={llmModel} onChange={(e) => setLlmModel(e.target.value)} placeholder="gpt-3.5-turbo" disabled={loading || searchLoading} />
+              )}
+
+              <InputField id="newsApiKey" label="NewsAPI Key (선택 사항)" type="password" value={newsApiKey} onChange={(e) => setNewsApiKey(e.target.value)} placeholder="NewsAPI 키 입력" disabled={loading || searchLoading} />
+
+              <div>
                 <label htmlFor="summaryLength" className="block text-sm font-medium text-gray-700 mb-1">요약 길이</label>
                 <select id="summaryLength" value={summaryLength} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSummaryLength(e.target.value as 'short' | 'medium' | 'long')} disabled={loading || searchLoading} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                   <option value="short">짧게</option>
@@ -226,7 +251,7 @@ function App() {
                 </select>
               </div>
 
-              <button onClick={analyzeNews} disabled={loading || searchLoading || !newsUrl} className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors">
+              <button onClick={analyzeNews} disabled={loading || searchLoading || !newsUrl || !llmApiKey} className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors">
                 {loading ? '분석 중...' : '뉴스 분석 실행'}
               </button>
             </div>

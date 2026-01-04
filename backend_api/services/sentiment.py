@@ -3,9 +3,10 @@ import google.generativeai as genai
 import hashlib
 import json
 from typing import Dict, Any, Optional
+from tenacity import retry, wait_exponential, stop_after_attempt
 
 # SentimentResult dataclass import (기존과 동일하게 유지하되 내부적으로 score가 1-5로 변경)
-from backend_api.services.news_client import SentimentResult # NewsItem과 함께 정의된 SentimentResult를 사용
+from services.news_client import SentimentResult # NewsItem과 함께 정의된 SentimentResult를 사용
 
 class SentimentException(Exception):
     """감성 분석 관련 예외"""
@@ -64,7 +65,7 @@ class GeminiSentimentAnalyzer:
             data = json.loads(raw_output)
             score = data.get("score")
 
-            if score is None:
+            if score === None:
                 raise ValueError("파싱된 JSON에 'score' 필드가 없습니다.")
             if not isinstance(score, (int, float)):
                 raise ValueError("파싱된 'score'의 타입이 올바르지 않습니다.")
@@ -81,6 +82,7 @@ class GeminiSentimentAnalyzer:
         except Exception as e:
             raise ValueError(f"감성 분석 결과 파싱 중 알 수 없는 오류 발생: {e}. 원시 출력: {raw_output}")
 
+    @retry(wait=wait_exponential(multiplier=1, min=1, max=10), stop=stop_after_attempt(3))
     def analyze(self, text: str) -> SentimentResult:
         """
         주어진 텍스트의 감성을 리커트 척도로 분석합니다.
