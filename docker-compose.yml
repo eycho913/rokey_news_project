@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend-api/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend-api:/app
+    environment:
+      # These can be set from .env file in a real scenario
+      # but for local testing, can be passed directly or via a .env file for docker-compose
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      NEWS_API_KEY: ${NEWS_API_KEY}
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "3000:80" # Map host port 3000 to container port 80 (Nginx default)
+    volumes:
+      - ./frontend:/app # Mount frontend for live changes (development only)
+      - /app/node_modules # Exclude node_modules from host mount
+    depends_on:
+      - backend
+    environment:
+      VITE_BACKEND_URL: http://backend:8000 # Use service name for inter-container communication
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

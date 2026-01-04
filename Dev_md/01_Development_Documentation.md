@@ -1,33 +1,52 @@
-# 1. Rokey News Project 개발 문서 (v1.0)
+# 1. Rokey News Project 개발 문서 (v2.0)
 
-이 문서는 "뉴스 요약 및 감성 분석 Streamlit 앱"의 개발 방향과 최종 구조를 설명합니다.
+이 문서는 "뉴스 요약 및 감성 분석 웹 앱"의 개발 방향과 현재 아키텍처(v2.0)를 설명합니다. 이 버전은 초기 Streamlit 기반 프로토타입에서 확장된 React/FastAPI 기반의 웹 애플리케이션입니다.
 
-## 1.1. 최종 프로젝트 목표 (v1.0)
+## 1.1. 프로젝트 목표 (v2.0)
 
--   사용자가 관심 키워드를 입력하면, 관련 최신 뉴스를 API로 가져와 핵심 내용 요약과 긍정/부정 감성 분석 결과를 한 화면에서 보여주는 Python/Streamlit 기반 웹 애플리케이션을 개발합니다.
--   분석 결과는 사용자가 업무 보고, 학습, 시장 동향 파악 등에 활용할 수 있도록 저장 및 공유 기능을 제공합니다.
+-   사용자가 뉴스 기사 URL을 입력하면, 해당 기사의 본문을 자동으로 추출하고 LLM(Large Language Model)을 통해 핵심 내용을 요약하며, 리커트 척도 기반의 감성 분석 결과를 제공하는 웹 애플리케이션을 개발합니다.
+-   사용자가 Gemini, OpenAI 등 다양한 LLM 공급자를 직접 선택하고 자신의 API 키를 사용하여 분석을 수행할 수 있는 유연한 환경을 제공합니다.
+-   향후 키워드 기반 뉴스 검색, 분석 결과 저장 및 공유 등 확장 기능을 염두에 둔 확장 가능한 아키텍처를 구축합니다.
 
-## 1.2. 최종 기술 스택
+## 1.2. 기술 스택
 
--   **언어/프레임워크**: Python, Streamlit
--   **핵심 라이브러리**:
-    -   `requests`: NewsAPI 연동
-    -   `google-generativeai`: Gemini API 연동 (요약, 감성 분석)
-    -   `beautifulsoup4`, `lxml`: 기사 본문 스크래핑 및 정제
-    -   `pandas`: 데이터 처리 및 CSV 변환
-    -   `python-dotenv`: 환경 변수 관리
-    -   `pytest`, `ruff`: 테스트 및 코드 린팅
+-   **프론트엔드**:
+    -   **언어/프레임워크**: TypeScript, React
+    -   **빌드 도구**: Vite
+    -   **UI**: 기본 HTML/CSS (향후 UI 라이브러리 도입 고려)
+
+-   **백엔드**:
+    -   **언어/프레임워크**: Python, FastAPI
+    -   **핵심 라이브러리**:
+        -   `requests`: 외부 API 연동 및 웹 스크래핑
+        -   `google-generativeai`: Gemini API 연동
+        -   `openai`: OpenAI 호환 API 연동
+        -   `beautifulsoup4`, `lxml`: 기사 본문 스크래핑 및 정제
+        -   `pydantic`: 데이터 유효성 검사
+        -   `uvicorn`: ASGI 서버
+
+-   **인프라 및 배포**:
+    -   **컨테이너화**: Docker, Docker Compose
+    -   **CI/CD**: GitHub Actions
 
 ## 1.3. 프로젝트 구조
 
--   `app.py`: Streamlit 메인 애플리케이션
--   `services/`: 핵심 비즈니스 로직 분리
-    -   `news_client.py`: NewsAPI 연동 및 데이터 관리
-    -   `text_extract.py`: 기사 본문 추출 및 정제
-    -   `summarizer.py`: Gemini 요약 기능
-    -   `sentiment.py`: Gemini 감성 분석 기능
--   `tests/`: 단위 및 통합 테스트
--   `data/`: 생성된 JSON 파일 저장
+-   `frontend/`: React 프론트엔드 애플리케이션
+    -   `src/App.tsx`: 메인 UI 컴포넌트 및 비즈니스 로직
+    -   `package.json`: 프론트엔드 의존성 관리
+    -   `Dockerfile`: 프론트엔드 Nginx 배포용 Docker 이미지 빌드
+-   `backend-api/`: FastAPI 백엔드 애플리케이션
+    -   `main.py`: API 엔드포인트 정의
+    -   `services/`: 핵심 비즈니스 로직 분리
+        -   `news_client.py`: 뉴스 데이터 스크래핑
+        -   `text_extract.py`: 텍스트 정제
+        -   `summarizer.py`: Gemini 기반 요약
+        -   `sentiment.py`: Gemini 기반 감성 분석
+        -   `openai_summarizer.py`: OpenAI 기반 요약
+        -   `openai_sentiment.py`: OpenAI 기반 감성 분석
+    -   `requirements.txt`: 백엔드 의존성 관리
+    -   `Dockerfile`: 백엔드 Docker 이미지 빌드
+-   `docker-compose.yml`: 프론트엔드 및 백엔드 서비스를 함께 오케스트레이션
 -   `.github/workflows/ci.yml`: GitHub Actions CI 구성
 
 ## 1.4. 개발 문서 링크
@@ -36,4 +55,5 @@
 -   [03_Content_Evaluation.md](./03_Content_Evaluation.md): 프로젝트 성공 기준 및 평가 항목
 -   [04_Prompt_Set.md](./04_Prompt_Set.md): 개발에 사용된 프롬프트 세트
 -   [05_Development_Log.md](./05_Development_Log.md): 주요 개발 단계별 로그
+-   [06_Development_Plan.md](./06_Development_Plan.md): 다음 개발 계획 (To-Do 리스트)
 -   [README.md](../README.md): 프로젝트 실행, 배포, FAQ 가이드
