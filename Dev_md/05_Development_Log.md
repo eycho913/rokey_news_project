@@ -51,7 +51,16 @@
     - `README.md`: Docker Compose 기반의 새로운 실행 방법 명시 및 프로젝트 개요 현행화. (완료)
     - `Dev_md/01_Development_Documentation.md`: 프로젝트 목표와 아키텍처를 v2.1에 맞게 재작성. (완료)
     - `Dev_md/02_Rules_and_Guidelines.md`: API 키 노출 리스크 및 대응 방안 현행화. (완료)
-    - `Dev_md/04_Prompt_Set.md`: 개발 프롬프트 세트 현행화. (미완료)
-    - `Dev_md/03_Content_Evaluation.md`: 프로젝트 성공 기준 현행화. (미완료)
+    - `Dev_md/04_Prompt_Set.md`: 개발 프롬프트 세트 현행화. (완료)
+    - `Dev_md/03_Content_Evaluation.md`: 프로젝트 성공 기준 현행화. (완료)
     - `Dev_md/05_Development_Log.md`: 개발 로그를 v2.1에 맞게 재작성. (완료)
     - `Dev_md/06_Development_Plan.md`: 향후 개발 계획을 담은 To-Do 리스트 신규 작성 및 현행화. (완료)
+
+## 단계 8: 추가 기능 및 개선 구현 (완료)
+- **작업**: 고급 검색 필터, UI/UX 개선, API 성능 최적화, 캐싱, 로깅 및 모니터링 시스템 구축을 진행.
+- **산출물**:
+    - **고급 뉴스 검색 기능**: `NewsClient` (`backend_api/services/news_client.py`) 및 `/search` 엔드포인트 (`backend_api/main.py`)에 `domains`, `excludeDomains`, `qInTitle` 필터 및 관련 프론트엔드 UI (`frontend/src/components/NewsSearchForm.tsx`) 추가. (완료)
+    - **UI/UX 개선**: 뉴스 검색 폼 날짜 입력에 `react-datepicker` 적용, 뉴스 검색 폼 로딩 스피너 구현, 뉴스 검색 결과 표시 개선 (설명 및 스타일링), 입력 필드 상태(에러, 비활성화 등) 시각적 피드백 강화. (`frontend/src/components/NewsSearchForm.tsx`) (완료)
+    - **API 성능 최적화**: 외부 API 호출 및 내부 처리 단계에 대한 성능 로깅 추가 (`backend_api/main.py`, `backend_api/services/news_client.py`), 뉴스 URL 스크래핑 결과에 대한 캐싱 추가 (`backend_api/services/news_client.py`). (완료)
+    - **캐싱 메커니즘 도입**: FastAPI `/search` 엔드포인트에 응답 캐싱 적용 (`backend_api/main.py`). (완료)
+    - **상세 로깅 및 모니터링 시스템 구축**: FastAPI 요청 처리 시간 로깅 미들웨어 구현 (`backend_api/main.py`). (완료)

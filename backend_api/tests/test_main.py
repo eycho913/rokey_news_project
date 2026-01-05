@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
 import os
+from datetime import date # Added for advanced filtering tests
 
 # Import the main app instance from your application
 from main import app, AnalyzeRequest, AnalyzeResponse, NewsItem, NewsAPIException, HTTPException, SummarizerException, SentimentException
@@ -62,7 +63,43 @@ def test_search_news_success(mock_news_client_class, mock_news_item):
     response = client.get("/search?q=test_keyword")
     assert response.status_code == 200
     assert response.json() == [mock_news_item.model_dump()] # Use model_dump for Pydantic v2
-    mock_news_client_instance.get_news.assert_called_once_with(keyword="test_keyword", page_size=20)
+    mock_news_client_instance.get_news.assert_called_once_with(
+        keyword="test_keyword",
+        from_date=None,
+        to_date=None,
+        language="ko",
+        sources=None,
+        sort_by="publishedAt",
+        page_size=20
+    )
+
+@patch('main.NewsClient')
+def test_search_news_advanced_filters(mock_news_client_class, mock_news_item):
+    mock_news_client_instance = mock_news_client_class.return_value
+    mock_news_client_instance.get_news.return_value = [mock_news_item]
+
+    params = {
+        "q": "tech",
+        "from_date": "2025-01-01",
+        "to_date": "2025-01-31",
+        "language": "en",
+        "sources": "techcrunch,the-verge",
+        "sort_by": "popularity",
+        "page_size": 10,
+    }
+    response = client.get("/search", params=params)
+    assert response.status_code == 200
+    assert response.json() == [mock_news_item.model_dump()]
+    
+    mock_news_client_instance.get_news.assert_called_once_with(
+        keyword="tech",
+        from_date=date(2025, 1, 1),
+        to_date=date(2025, 1, 31),
+        language="en",
+        sources="techcrunch,the-verge",
+        sort_by="popularity",
+        page_size=10
+    )
 
 @patch('main.os.getenv')
 def test_search_news_no_news_api_key(mock_os_getenv):
@@ -70,7 +107,7 @@ def test_search_news_no_news_api_key(mock_os_getenv):
 
     response = client.get("/search?q=test_keyword")
     assert response.status_code == 500
-    assert response.json() == {"detail": "NEWS_API_KEY not configured on the backend server."}
+    assert response.json() == {"detail": "NEWS_API_KEY not configured on the backend server or provided in UI."}
 
 @patch('main.NewsClient')
 def test_search_news_exception(mock_news_client_class):
@@ -95,7 +132,7 @@ def test_analyze_news_no_llm_api_key(mock_os_getenv, mock_news_client_class):
     request_payload = {"news_url": "http://test.com/news", "summary_length": "short"}
     response = client.post("/analyze", json=request_payload)
     assert response.status_code == 500
-    assert response.json() == {"detail": "LLM_API_KEY not configured on the backend server."}
+    assert response.json() == {"detail": "LLM_API_KEY not configured on the backend server or provided in UI."}
 
 @patch('main.NewsClient')
 @patch('main.os.getenv')
@@ -206,7 +243,7 @@ def test_analyze_news_summarization_failure(mock_sentiment_analyzer_class, mock_
         response = client.post("/analyze", json=request_payload)
 
         assert response.status_code == 200
-        assert "요약 실패: LLM summarization error" in response.json()["summary"]
+        assert "Summarization failed: LLM summarization error" in response.json()["summary"] # Changed from 요약 실패
         assert response.json()["sentiment_label"] == mock_news_item.sentiment.label
 
 @patch('main.NewsClient')
